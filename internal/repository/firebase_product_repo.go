@@ -168,7 +168,7 @@ func (r *FirebaseProductRepository) Update(ctx context.Context, id string, req *
 		if req.IsAvailable != nil { p.IsAvailable = *req.IsAvailable }
 		p.UpdatedAt = time.Now()
 
-		if len(req.Images) > 0 {
+		if req.Images != nil {
 			p.Images = []models.ProductImage{}
 			for i, imgReq := range req.Images {
 				p.Images = append(p.Images, models.ProductImage{
@@ -182,7 +182,7 @@ func (r *FirebaseProductRepository) Update(ctx context.Context, id string, req *
 			}
 		}
 
-		if len(req.Variants) > 0 {
+		if req.Variants != nil {
 			p.Variants = []models.ProductVariant{}
 			for i, varReq := range req.Variants {
 				p.Variants = append(p.Variants, models.ProductVariant{
