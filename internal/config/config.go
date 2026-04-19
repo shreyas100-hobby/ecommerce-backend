@@ -9,6 +9,9 @@ import (
 
 type Config struct {
 	DatabaseURL         string
+	DBDriver                string
+	FirebaseCredentials     string
+	FirebaseCredentialsJSON string
 	Port                string
 	SellerPhone         string
 	AppURL              string
@@ -26,6 +29,9 @@ func Load() *Config {
 
 	return &Config{
 		DatabaseURL:         mustGet("DATABASE_URL"),
+		DBDriver:                getOrDefault("DB_DRIVER", "postgres"),
+		FirebaseCredentials:     getOrDefault("FIREBASE_CREDENTIALS", "firebase-credentials.json"),
+		FirebaseCredentialsJSON: os.Getenv("FIREBASE_CREDENTIALS_JSON"),
 		Port:                getOrDefault("PORT", "8080"),
 		SellerPhone:         mustGet("SELLER_WHATSAPP_PHONE"),
 		AppURL:              getOrDefault("APP_URL", "http://localhost:8080"),

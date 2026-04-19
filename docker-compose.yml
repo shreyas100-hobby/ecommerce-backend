@@ -29,6 +29,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    volumes:
+      - ./firebase-credentials.json:/root/firebase-credentials.json:ro
 
 volumes:
   postgres_data:

@@ -9,14 +9,14 @@ import (
 )
 
 type OrderService struct {
-	orderRepo   *repository.OrderRepository
-	productRepo *repository.ProductRepository
+	orderRepo   repository.OrderRepository
+	productRepo repository.ProductRepository
 	msgService  *MessageService
 }
 
 func NewOrderService(
-	orderRepo *repository.OrderRepository,
-	productRepo *repository.ProductRepository,
+	orderRepo repository.OrderRepository,
+	productRepo repository.ProductRepository,
 	msgService *MessageService,
 ) *OrderService {
 	return &OrderService{

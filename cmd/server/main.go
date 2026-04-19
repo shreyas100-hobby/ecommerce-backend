@@ -2,6 +2,7 @@
 package main
 
 import (
+    "context"
     "log"
 
     "github.com/gin-gonic/gin"
@@ -15,8 +16,6 @@ import (
 
 func main() {
     cfg := config.Load()
-    db := database.NewPool(cfg.DatabaseURL)
-    defer db.Close()
 
     // Cloudinary
     cloudinarySvc, err := services.NewCloudinaryService(
@@ -29,8 +28,26 @@ func main() {
     }
 
     // Repositories
-    productRepo := repository.NewProductRepository(db)
-    orderRepo := repository.NewOrderRepository(db)
+    var productRepo repository.ProductRepository
+    var orderRepo repository.OrderRepository
+
+    if cfg.DBDriver == "firebase" {
+        ctx := context.Background()
+        firestoreClient, err := database.NewFirestoreClient(ctx, cfg.FirebaseCredentials, cfg.FirebaseCredentialsJSON)
+        if err != nil {
+            log.Fatalf("❌ Firebase init failed: %v", err)
+        }
+        defer firestoreClient.Close()
+        productRepo = repository.NewFirebaseProductRepository(firestoreClient)
+        orderRepo = repository.NewFirebaseOrderRepository(firestoreClient)
+        log.Println("✅ Connected to Firebase Firestore")
+    } else {
+        db := database.NewPool(cfg.DatabaseURL)
+        defer db.Close()
+        productRepo = repository.NewPostgresProductRepository(db)
+        orderRepo = repository.NewPostgresOrderRepository(db)
+        log.Println("✅ Connected to PostgreSQL")
+    }
 
     // Services
     msgService := services.NewMessageService(cfg.SellerPhone, cfg.AppURL)

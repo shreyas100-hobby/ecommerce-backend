@@ -10,15 +10,23 @@ import (
 	"github.com/shreyas100-hobby/ecommerce-backend/internal/models"
 )
 
-type OrderRepository struct {
+type OrderRepository interface {
+	Create(ctx context.Context, order *models.Order) error
+	GetByID(ctx context.Context, id string) (*models.Order, error)
+	GetAll(ctx context.Context) ([]models.Order, error)
+	UpdateStatus(ctx context.Context, id string, status models.OrderStatus) error
+	GetByOrderNumber(ctx context.Context, orderNumber string) (*models.Order, error)
+}
+
+type PostgresOrderRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewOrderRepository(db *pgxpool.Pool) *OrderRepository {
-	return &OrderRepository{db: db}
+func NewPostgresOrderRepository(db *pgxpool.Pool) *PostgresOrderRepository {
+	return &PostgresOrderRepository{db: db}
 }
 
-func (r *OrderRepository) Create(ctx context.Context, order *models.Order) error {
+func (r *PostgresOrderRepository) Create(ctx context.Context, order *models.Order) error {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -80,7 +88,7 @@ func (r *OrderRepository) Create(ctx context.Context, order *models.Order) error
 	return tx.Commit(ctx)
 }
 
-func (r *OrderRepository) GetByID(ctx context.Context, id string) (*models.Order, error) {
+func (r *PostgresOrderRepository) GetByID(ctx context.Context, id string) (*models.Order, error) {
 	var order models.Order
 
 	orderQuery := `
@@ -128,7 +136,7 @@ func (r *OrderRepository) GetByID(ctx context.Context, id string) (*models.Order
 	return &order, nil
 }
 
-func (r *OrderRepository) GetAll(ctx context.Context) ([]models.Order, error) {
+func (r *PostgresOrderRepository) GetAll(ctx context.Context) ([]models.Order, error) {
 	query := `
 		SELECT id, order_number, customer_name, customer_phone,
 		       customer_address, note, total_amount, status,
@@ -161,7 +169,7 @@ func (r *OrderRepository) GetAll(ctx context.Context) ([]models.Order, error) {
 	return orders, nil
 }
 
-func (r *OrderRepository) UpdateStatus(ctx context.Context, id string, status models.OrderStatus) error {
+func (r *PostgresOrderRepository) UpdateStatus(ctx context.Context, id string, status models.OrderStatus) error {
 	result, err := r.db.Exec(ctx,
 		"UPDATE orders SET status = $1, updated_at = NOW() WHERE id = $2",
 		status, id,
@@ -175,7 +183,7 @@ func (r *OrderRepository) UpdateStatus(ctx context.Context, id string, status mo
 	return nil
 }
 
-func (r *OrderRepository) GetByOrderNumber(ctx context.Context, orderNumber string) (*models.Order, error) {
+func (r *PostgresOrderRepository) GetByOrderNumber(ctx context.Context, orderNumber string) (*models.Order, error) {
 	var order models.Order
 	err := r.db.QueryRow(ctx, `
 		SELECT id, order_number, customer_name, customer_phone,
@@ -201,7 +209,7 @@ func (r *OrderRepository) GetByOrderNumber(ctx context.Context, orderNumber stri
 
 	return &order, nil
 }
-func (r *OrderRepository) getOrderItems(ctx context.Context, orderID string) ([]models.OrderItem, error) {
+func (r *PostgresOrderRepository) getOrderItems(ctx context.Context, orderID string) ([]models.OrderItem, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT
 			id, order_id, product_id,

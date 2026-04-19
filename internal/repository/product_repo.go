@@ -8,17 +8,32 @@ import (
 	"github.com/shreyas100-hobby/ecommerce-backend/internal/models"
 )
 
-type ProductRepository struct {
+type ProductRepository interface {
+	GetAll(ctx context.Context, categoryID string) ([]models.Product, error)
+	GetAllAdmin(ctx context.Context) ([]models.Product, error)
+	GetByID(ctx context.Context, id string) (*models.Product, error)
+	Create(ctx context.Context, req *models.CreateProductRequest) (*models.Product, error)
+	Update(ctx context.Context, id string, req *models.UpdateProductRequest) (*models.Product, error)
+	Delete(ctx context.Context, id string) error
+	GetProductImages(ctx context.Context, productID string) ([]models.ProductImage, error)
+	GetProductVariants(ctx context.Context, productID string) ([]models.ProductVariant, error)
+	GetVariantByID(ctx context.Context, id string) (*models.ProductVariant, error)
+	GetAllCategories(ctx context.Context) ([]models.Category, error)
+	CreateCategory(ctx context.Context, name, description string, cat *models.Category) error
+	DeleteCategory(ctx context.Context, id string) error
+}
+
+type PostgresProductRepository struct {
 	db *pgxpool.Pool
 }
 
-func NewProductRepository(db *pgxpool.Pool) *ProductRepository {
-	return &ProductRepository{db: db}
+func NewPostgresProductRepository(db *pgxpool.Pool) *PostgresProductRepository {
+	return &PostgresProductRepository{db: db}
 }
 
 // ─── Products ────────────────────────────────────────────────
 
-func (r *ProductRepository) GetAll(ctx context.Context, categoryID string) ([]models.Product, error) {
+func (r *PostgresProductRepository) GetAll(ctx context.Context, categoryID string) ([]models.Product, error) {
 	query := `
 		SELECT
 			p.id, p.name, p.description, p.price, p.original_price,
@@ -62,7 +77,7 @@ func (r *ProductRepository) GetAll(ctx context.Context, categoryID string) ([]mo
 	return products, nil
 }
 
-func (r *ProductRepository) GetAllAdmin(ctx context.Context) ([]models.Product, error) {
+func (r *PostgresProductRepository) GetAllAdmin(ctx context.Context) ([]models.Product, error) {
 	query := `
 		SELECT
 			p.id, p.name, p.description, p.price, p.original_price,
@@ -97,7 +112,7 @@ func (r *ProductRepository) GetAllAdmin(ctx context.Context) ([]models.Product, 
 	return products, nil
 }
 
-func (r *ProductRepository) GetByID(ctx context.Context, id string) (*models.Product, error) {
+func (r *PostgresProductRepository) GetByID(ctx context.Context, id string) (*models.Product, error) {
 	query := `
 		SELECT
 			p.id, p.name, p.description, p.price, p.original_price,
@@ -133,7 +148,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id string) (*models.Pro
 	return &p, nil
 }
 
-func (r *ProductRepository) Create(ctx context.Context, req *models.CreateProductRequest) (*models.Product, error) {
+func (r *PostgresProductRepository) Create(ctx context.Context, req *models.CreateProductRequest) (*models.Product, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -192,7 +207,7 @@ func (r *ProductRepository) Create(ctx context.Context, req *models.CreateProduc
 	return &p, nil
 }
 
-func (r *ProductRepository) Update(ctx context.Context, id string, req *models.UpdateProductRequest) (*models.Product, error) {
+func (r *PostgresProductRepository) Update(ctx context.Context, id string, req *models.UpdateProductRequest) (*models.Product, error) {
 	tx, err := r.db.Begin(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to begin transaction: %w", err)
@@ -273,7 +288,7 @@ func (r *ProductRepository) Update(ctx context.Context, id string, req *models.U
 	return &p, nil
 }
 
-func (r *ProductRepository) Delete(ctx context.Context, id string) error {
+func (r *PostgresProductRepository) Delete(ctx context.Context, id string) error {
 	result, err := r.db.Exec(ctx,
 		"DELETE FROM products WHERE id = $1", id)
 	if err != nil {
@@ -287,7 +302,7 @@ func (r *ProductRepository) Delete(ctx context.Context, id string) error {
 
 // ─── Images ──────────────────────────────────────────────────
 
-func (r *ProductRepository) GetProductImages(ctx context.Context, productID string) ([]models.ProductImage, error) {
+func (r *PostgresProductRepository) GetProductImages(ctx context.Context, productID string) ([]models.ProductImage, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, product_id, url, COALESCE(public_id, ''), sort_order, created_at
 		FROM product_images
@@ -316,7 +331,7 @@ func (r *ProductRepository) GetProductImages(ctx context.Context, productID stri
 
 // ─── Variants ────────────────────────────────────────────────
 
-func (r *ProductRepository) GetProductVariants(ctx context.Context, productID string) ([]models.ProductVariant, error) {
+func (r *PostgresProductRepository) GetProductVariants(ctx context.Context, productID string) ([]models.ProductVariant, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, product_id, color, size, stock_quantity, created_at
 		FROM product_variants
@@ -343,7 +358,7 @@ func (r *ProductRepository) GetProductVariants(ctx context.Context, productID st
 	return variants, nil
 }
 
-func (r *ProductRepository) GetVariantByID(ctx context.Context, id string) (*models.ProductVariant, error) {
+func (r *PostgresProductRepository) GetVariantByID(ctx context.Context, id string) (*models.ProductVariant, error) {
 	var v models.ProductVariant
 	err := r.db.QueryRow(ctx, `
 		SELECT id, product_id, color, size, stock_quantity, created_at
@@ -360,7 +375,7 @@ func (r *ProductRepository) GetVariantByID(ctx context.Context, id string) (*mod
 
 // ─── Categories ──────────────────────────────────────────────
 
-func (r *ProductRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
+func (r *PostgresProductRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	rows, err := r.db.Query(ctx,
 		"SELECT id, name, COALESCE(description, ''), created_at FROM categories ORDER BY name")
 	if err != nil {
@@ -381,7 +396,7 @@ func (r *ProductRepository) GetAllCategories(ctx context.Context) ([]models.Cate
 	return categories, nil
 }
 
-func (r *ProductRepository) CreateCategory(ctx context.Context, name, description string, cat *models.Category) error {
+func (r *PostgresProductRepository) CreateCategory(ctx context.Context, name, description string, cat *models.Category) error {
 	return r.db.QueryRow(ctx, `
 		INSERT INTO categories (name, description)
 		VALUES ($1, $2)
@@ -390,7 +405,7 @@ func (r *ProductRepository) CreateCategory(ctx context.Context, name, descriptio
 	).Scan(&cat.ID, &cat.Name, &cat.Description, &cat.CreatedAt)
 }
 
-func (r *ProductRepository) DeleteCategory(ctx context.Context, id string) error {
+func (r *PostgresProductRepository) DeleteCategory(ctx context.Context, id string) error {
 	result, err := r.db.Exec(ctx,
 		"DELETE FROM categories WHERE id = $1", id)
 	if err != nil {
