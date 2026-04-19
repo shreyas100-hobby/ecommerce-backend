@@ -90,10 +90,16 @@ func (r *FirebaseOrderRepository) UpdateStatus(ctx context.Context, id string, s
 }
 
 func (r *FirebaseOrderRepository) GetByOrderNumber(ctx context.Context, orderNumber string) (*models.Order, error) {
+	// Try lowercase first
 	iter := r.client.Collection(ordersCollection).Where("order_number", "==", orderNumber).Limit(1).Documents(ctx)
-	defer iter.Stop()
-
 	doc, err := iter.Next()
+
+	if err == iterator.Done {
+		// Fallback to capitalized for older orders
+		iter = r.client.Collection(ordersCollection).Where("OrderNumber", "==", orderNumber).Limit(1).Documents(ctx)
+		doc, err = iter.Next()
+	}
+
 	if err == iterator.Done {
 		return nil, fmt.Errorf("order not found")
 	}
