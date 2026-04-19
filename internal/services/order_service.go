@@ -41,7 +41,9 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 	order := &models.Order{
 		CustomerName:    req.CustomerName,
 		CustomerPhone:   req.CustomerPhone,
+		CustomerEmail:   req.CustomerEmail,
 		CustomerAddress: req.CustomerAddress,
+		GoogleMapsLink:  req.GoogleMapsLink,
 		Note:            req.Note,
 		PaymentMethod:   req.PaymentMethod,
 		Status:          models.StatusPending,

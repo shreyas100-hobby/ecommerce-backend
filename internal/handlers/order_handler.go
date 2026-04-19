@@ -92,6 +92,8 @@ func (h *OrderHandler) TrackOrder(c *gin.Context) {
 		"data": gin.H{
 			"order_number":   order.OrderNumber,
 			"customer_name":  order.CustomerName,
+			"customer_phone": order.CustomerPhone,
+			"customer_email": order.CustomerEmail,
 			"status":         order.Status,
 			"total_amount":   order.TotalAmount,
 			"payment_method": order.PaymentMethod,

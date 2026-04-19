@@ -25,7 +25,7 @@ const categoriesCollection = "categories"
 
 func (r *FirebaseProductRepository) GetAll(ctx context.Context, categoryID string) ([]models.Product, error) {
 	var products []models.Product
-	iter := r.client.Collection(productsCollection).OrderBy("CreatedAt", firestore.Desc).Documents(ctx)
+	iter := r.client.Collection(productsCollection).OrderBy("created_at", firestore.Desc).Documents(ctx)
 	defer iter.Stop()
 
 	for {
@@ -57,7 +57,7 @@ func (r *FirebaseProductRepository) GetAll(ctx context.Context, categoryID strin
 
 func (r *FirebaseProductRepository) GetAllAdmin(ctx context.Context) ([]models.Product, error) {
 	var products []models.Product
-	iter := r.client.Collection(productsCollection).OrderBy("CreatedAt", firestore.Desc).Documents(ctx)
+	iter := r.client.Collection(productsCollection).OrderBy("created_at", firestore.Desc).Documents(ctx)
 	defer iter.Stop()
 
 	for {
@@ -251,7 +251,7 @@ func (r *FirebaseProductRepository) GetVariantByID(ctx context.Context, id strin
 
 func (r *FirebaseProductRepository) GetAllCategories(ctx context.Context) ([]models.Category, error) {
 	var categories []models.Category
-	iter := r.client.Collection(categoriesCollection).OrderBy("Name", firestore.Asc).Documents(ctx)
+	iter := r.client.Collection(categoriesCollection).OrderBy("name", firestore.Asc).Documents(ctx)
 	defer iter.Stop()
 
 	for {

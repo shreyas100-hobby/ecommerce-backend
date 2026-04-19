@@ -61,7 +61,7 @@ func (r *FirebaseOrderRepository) GetByID(ctx context.Context, id string) (*mode
 
 func (r *FirebaseOrderRepository) GetAll(ctx context.Context) ([]models.Order, error) {
 	var orders []models.Order
-	iter := r.client.Collection(ordersCollection).OrderBy("CreatedAt", firestore.Desc).Documents(ctx)
+	iter := r.client.Collection(ordersCollection).OrderBy("created_at", firestore.Desc).Documents(ctx)
 	defer iter.Stop()
 
 	for {
@@ -80,8 +80,8 @@ func (r *FirebaseOrderRepository) GetAll(ctx context.Context) ([]models.Order, e
 
 func (r *FirebaseOrderRepository) UpdateStatus(ctx context.Context, id string, status models.OrderStatus) error {
 	_, err := r.client.Collection(ordersCollection).Doc(id).Update(ctx, []firestore.Update{
-		{Path: "Status", Value: status},
-		{Path: "UpdatedAt", Value: time.Now()},
+		{Path: "status", Value: status},
+		{Path: "updated_at", Value: time.Now()},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update order status: %w", err)
@@ -90,7 +90,7 @@ func (r *FirebaseOrderRepository) UpdateStatus(ctx context.Context, id string, s
 }
 
 func (r *FirebaseOrderRepository) GetByOrderNumber(ctx context.Context, orderNumber string) (*models.Order, error) {
-	iter := r.client.Collection(ordersCollection).Where("OrderNumber", "==", orderNumber).Limit(1).Documents(ctx)
+	iter := r.client.Collection(ordersCollection).Where("order_number", "==", orderNumber).Limit(1).Documents(ctx)
 	defer iter.Stop()
 
 	doc, err := iter.Next()

@@ -63,6 +63,7 @@ func main() {
         api.GET("/products/:id", productHandler.GetProduct)
         api.GET("/categories", productHandler.GetCategories)
         api.POST("/orders", orderHandler.CreateOrder)
+        api.GET("/orders/track/:orderNumber", orderHandler.TrackOrder)
     }
 
     // Admin routes
