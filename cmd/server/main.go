@@ -28,26 +28,16 @@ func main() {
     }
 
     // Repositories
-    var productRepo repository.ProductRepository
-    var orderRepo repository.OrderRepository
-
-    if cfg.DBDriver == "firebase" {
-        ctx := context.Background()
-        firestoreClient, err := database.NewFirestoreClient(ctx, cfg.FirebaseCredentials, cfg.FirebaseCredentialsJSON)
-        if err != nil {
-            log.Fatalf("❌ Firebase init failed: %v", err)
-        }
-        defer firestoreClient.Close()
-        productRepo = repository.NewFirebaseProductRepository(firestoreClient)
-        orderRepo = repository.NewFirebaseOrderRepository(firestoreClient)
-        log.Println("✅ Connected to Firebase Firestore")
-    } else {
-        db := database.NewPool(cfg.DatabaseURL)
-        defer db.Close()
-        productRepo = repository.NewPostgresProductRepository(db)
-        orderRepo = repository.NewPostgresOrderRepository(db)
-        log.Println("✅ Connected to PostgreSQL")
+    ctx := context.Background()
+    firestoreClient, err := database.NewFirestoreClient(ctx, cfg.FirebaseCredentials, cfg.FirebaseCredentialsJSON)
+    if err != nil {
+        log.Fatalf("❌ Firebase init failed: %v", err)
     }
+    defer firestoreClient.Close()
+    
+    productRepo := repository.NewFirebaseProductRepository(firestoreClient)
+    orderRepo := repository.NewFirebaseOrderRepository(firestoreClient)
+    log.Println("✅ Connected to Firebase Firestore")
 
     // Services
     msgService := services.NewMessageService(cfg.SellerPhone, cfg.AppURL)

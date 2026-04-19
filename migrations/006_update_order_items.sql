@@ -1,6 +1,0 @@
--- migrations/006_update_order_items.sql
-ALTER TABLE order_items 
-ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants(id),
-ADD COLUMN IF NOT EXISTS color VARCHAR(100) DEFAULT '',
-ADD COLUMN IF NOT EXISTS size VARCHAR(50) DEFAULT '',
-ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT '';

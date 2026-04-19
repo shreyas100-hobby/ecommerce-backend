@@ -7,7 +7,6 @@ require (
 	firebase.google.com/go/v4 v4.19.0
 	github.com/cloudinary/cloudinary-go/v2 v2.9.0
 	github.com/gin-gonic/gin v1.10.0
-	github.com/jackc/pgx/v5 v5.7.2
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/api v0.231.0
 	google.golang.org/grpc v1.72.0
@@ -53,9 +52,6 @@ require (
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.14.1 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
-	github.com/jackc/pgpassfile v1.0.0 // indirect
-	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
-	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.7 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
