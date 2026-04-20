@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -298,21 +299,33 @@ func (r *FirebaseProductRepository) DecrementStock(ctx context.Context, productI
 			return fmt.Errorf("failed to decode product for stock update: %w", err)
 		}
 
+		log.Printf("🔄 DecrementStock - Product: %s, VariantID: %v, Qty: %d", productID, variantID, quantity)
+		log.Printf("   Current product stock: %d, Variants count: %d", p.StockQuantity, len(p.Variants))
+
 		if variantID != nil && *variantID != "" {
 			// Find and update variant stock
 			found := false
 			for i := range p.Variants {
+				log.Printf("   Checking variant %d: ID=%s (looking for %s)", i, p.Variants[i].ID, *variantID)
+				
 				if p.Variants[i].ID == *variantID {
+					log.Printf("   ✅ Variant matched! Current stock: %d, Decrementing by: %d", 
+						p.Variants[i].StockQuantity, quantity)
+					
 					if p.Variants[i].StockQuantity < quantity {
-						return fmt.Errorf("insufficient stock for variant")
+						return fmt.Errorf("insufficient stock for variant %s (available: %d, requested: %d)", 
+							*variantID, p.Variants[i].StockQuantity, quantity)
 					}
 					p.Variants[i].StockQuantity -= quantity
 					found = true
+					
+					log.Printf("   📉 Variant stock after decrement: %d", p.Variants[i].StockQuantity)
 					break
 				}
 			}
 			if !found {
-				return fmt.Errorf("variant not found")
+				log.Printf("   ❌ Variant %s not found in product %s", *variantID, productID)
+				return fmt.Errorf("variant %s not found in product %s", *variantID, productID)
 			}
 
 			// Check if ALL variants are now out of stock
@@ -324,26 +337,31 @@ func (r *FirebaseProductRepository) DecrementStock(ctx context.Context, productI
 				}
 			}
 			if allOutOfStock {
+				log.Printf("   ⚠️ All variants out of stock, marking product unavailable")
 				p.IsAvailable = false
 			}
 		} else {
 			// Update main product stock
+			log.Printf("   📦 No variant, updating main stock from %d", p.StockQuantity)
+			
 			if p.StockQuantity < quantity {
-				return fmt.Errorf("insufficient stock for product")
+				return fmt.Errorf("insufficient stock for product %s (available: %d, requested: %d)", 
+					productID, p.StockQuantity, quantity)
 			}
 			p.StockQuantity -= quantity
 			
-			// If stock is now 0, mark as unavailable for better UX
-			if p.StockQuantity == 0 {
+			log.Printf("   📉 Product stock after decrement: %d", p.StockQuantity)
+			
+			// Mark as unavailable if stock reaches 0
+			if p.StockQuantity <= 0 {
+				log.Printf("   ⚠️ Product out of stock, marking unavailable")
 				p.IsAvailable = false
 			}
 		}
 
-		// Also update IsAvailable if stock reaches 0?
-		// Actually, let's keep IsAvailable as a manual toggle or logic based, 
-		// but typically if all stock is 0, it should probably be shown as out of stock.
-		// For now, just decrement.
-
+		p.UpdatedAt = time.Now()
+		
+		log.Printf("   💾 Saving updated product to Firestore")
 		return tx.Set(docRef, p)
 	})
 }

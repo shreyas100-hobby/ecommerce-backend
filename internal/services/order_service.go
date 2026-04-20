@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/shreyas100-hobby/ecommerce-backend/internal/models"
 	"github.com/shreyas100-hobby/ecommerce-backend/internal/repository"
@@ -51,11 +52,20 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 
 	var totalAmount float64
 
-	for _, itemReq := range req.Items {
+	// 1. Validate products and build order items
+	for idx, itemReq := range req.Items {
+		log.Printf("🔍 Processing item %d: ProductID=%s, VariantID=%v, Quantity=%d", 
+			idx+1, itemReq.ProductID, itemReq.VariantID, itemReq.Quantity)
+
 		product, err := s.productRepo.GetByID(ctx, itemReq.ProductID)
 		if err != nil {
+			log.Printf("❌ Product not found: %s", itemReq.ProductID)
 			return nil, fmt.Errorf("product not found: %s", itemReq.ProductID)
 		}
+
+		log.Printf("📦 Product found: %s (Available: %v, Stock: %d, Variants: %d)", 
+			product.Name, product.IsAvailable, product.StockQuantity, len(product.Variants))
+
 		if !product.IsAvailable {
 			return nil, fmt.Errorf("'%s' is currently unavailable", product.Name)
 		}
@@ -69,26 +79,52 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 		size := itemReq.Size
 		variantID := itemReq.VariantID
 
-		if variantID != nil && *variantID != "" {
-			variant, err := s.productRepo.GetVariantByID(ctx, *variantID)
-			if err != nil {
-				return nil, fmt.Errorf("variant not found for '%s'", product.Name)
+		// Check if product has variants
+		if len(product.Variants) > 0 {
+			log.Printf("🎨 Product has %d variants", len(product.Variants))
+			
+			// If product has variants, user MUST select one
+			if variantID == nil || *variantID == "" {
+				return nil, fmt.Errorf("please select color and size for '%s'", product.Name)
 			}
-			if variant.StockQuantity < itemReq.Quantity {
+
+			// Find the variant
+			var selectedVariant *models.ProductVariant
+			for i := range product.Variants {
+				log.Printf("   Variant %d: ID=%s, Color=%s, Size=%s, Stock=%d", 
+					i, product.Variants[i].ID, product.Variants[i].Color, 
+					product.Variants[i].Size, product.Variants[i].StockQuantity)
+				
+				if product.Variants[i].ID == *variantID {
+					selectedVariant = &product.Variants[i]
+					break
+				}
+			}
+
+			if selectedVariant == nil {
+				log.Printf("❌ Variant %s not found in product variants", *variantID)
+				return nil, fmt.Errorf("selected variant not found for '%s'", product.Name)
+			}
+
+			log.Printf("✅ Variant found: %s-%s (Stock: %d, Requested: %d)", 
+				selectedVariant.Color, selectedVariant.Size, selectedVariant.StockQuantity, itemReq.Quantity)
+
+			// Check variant stock
+			if selectedVariant.StockQuantity < itemReq.Quantity {
 				return nil, fmt.Errorf(
 					"only %d units available for '%s' in %s - %s",
-					variant.StockQuantity, product.Name,
-					variant.Color, variant.Size,
+					selectedVariant.StockQuantity, product.Name,
+					selectedVariant.Color, selectedVariant.Size,
 				)
 			}
-			color = variant.Color
-			size = variant.Size
-		} else if len(product.Variants) > 0 {
-			return nil, fmt.Errorf(
-				"please select color and size for '%s'",
-				product.Name,
-			)
+
+			color = selectedVariant.Color
+			size = selectedVariant.Size
 		} else {
+			// Product has no variants - check main stock
+			log.Printf("📦 Product has no variants, checking main stock: %d (Requested: %d)", 
+				product.StockQuantity, itemReq.Quantity)
+
 			if product.StockQuantity < itemReq.Quantity {
 				return nil, fmt.Errorf(
 					"only %d units available for '%s'",
@@ -111,32 +147,51 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 			Quantity:     itemReq.Quantity,
 			Subtotal:     subtotal,
 		})
+
+		log.Printf("✅ Item validated: %s x%d = ₹%.2f", product.Name, itemReq.Quantity, subtotal)
 	}
 
 	order.TotalAmount = totalAmount
 
-	// 3. Decrement Stock
+	// 2. Create order FIRST (this assigns IDs and order number)
+	log.Printf("💾 Creating order in database...")
+	if err := s.orderRepo.Create(ctx, order); err != nil {
+		log.Printf("❌ Failed to create order: %v", err)
+		return nil, fmt.Errorf("failed to save order: %w", err)
+	}
+	log.Printf("✅ Order created: %s", order.OrderNumber)
+
+	// 3. Then decrement stock (only after successful order creation)
 	for _, item := range order.Items {
 		var vID *string
 		if item.VariantID != nil && *item.VariantID != "" {
 			vID = item.VariantID
 		}
 		
+		log.Printf("📉 Decrementing stock for %s (ProductID: %s, VariantID: %v, Qty: %d)", 
+			item.ProductName, item.ProductID, vID, item.Quantity)
+
 		err := s.productRepo.DecrementStock(ctx, item.ProductID, vID, item.Quantity)
 		if err != nil {
-			return nil, fmt.Errorf("failed to update stock for '%s': %w", item.ProductName, err)
+			log.Printf("❌ Stock decrement failed: %v", err)
+			return nil, fmt.Errorf("order created but stock update failed for '%s': %w. Contact support with order #%s", 
+				item.ProductName, err, order.OrderNumber)
 		}
+		log.Printf("✅ Stock decremented for %s", item.ProductName)
 	}
 
-	if err := s.orderRepo.Create(ctx, order); err != nil {
-		return nil, fmt.Errorf("failed to save order: %w", err)
-	}
+	// 4. Generate messages and return
+	whatsappURL := s.msgService.GenerateWhatsAppURL(order)
+	customerMessage := s.msgService.GenerateCustomerConfirmationMessage(order)
+	orderMessage := s.msgService.GenerateOrderMessage(order)
+
+	log.Printf("🎉 Order completed successfully: %s (Total: ₹%.2f)", order.OrderNumber, order.TotalAmount)
 
 	return &CreateOrderResponse{
 		Order:        order,
-		WhatsAppURL:  s.msgService.GenerateWhatsAppURL(order),
-		Message:      s.msgService.GenerateCustomerConfirmationMessage(order),
-		OrderMessage: s.msgService.GenerateOrderMessage(order),
+		WhatsAppURL:  whatsappURL,
+		Message:      customerMessage,
+		OrderMessage: orderMessage,
 	}, nil
 }
 

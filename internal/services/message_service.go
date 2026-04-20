@@ -19,71 +19,71 @@ func NewMessageService(sellerPhone, appURL string) *MessageService {
 		appURL:      appURL,
 	}
 }
-// internal/services/message_service.go
+
+// GenerateOrderMessage creates the full order details message
 func (s *MessageService) GenerateOrderMessage(order *models.Order) string {
-    var sb strings.Builder
-
-    sb.WriteString("🛒 *NEW ORDER RECEIVED*\n")
-    sb.WriteString("━━━━━━━━━━━━━━━━━━━━\n\n")
-    sb.WriteString(fmt.Sprintf("📋 *Order:* %s\n", order.OrderNumber))
-    sb.WriteString(fmt.Sprintf("📅 *Date:* %s\n\n",
-        order.CreatedAt.Format("02 Jan 2006, 3:04 PM")))
-
-    sb.WriteString("👤 *Customer Details*\n")
-    sb.WriteString(fmt.Sprintf("Name: %s\n", order.CustomerName))
-    sb.WriteString(fmt.Sprintf("Phone: %s\n", order.CustomerPhone))
-    if order.CustomerAddress != "" {
-        sb.WriteString(fmt.Sprintf("Address: %s\n", order.CustomerAddress))
-    }
-    sb.WriteString("\n")
-
-    sb.WriteString("🛍️ *Items Ordered*\n")
-    sb.WriteString("─────────────────────\n")
-
-    for _, item := range order.Items {
-        sb.WriteString(fmt.Sprintf("👗 *%s*\n", item.ProductName))
-
-        // Variant details
-        if item.Color != "" {
-            sb.WriteString(fmt.Sprintf("   Color: %s\n", item.Color))
-        }
-        if item.Size != "" {
-            sb.WriteString(fmt.Sprintf("   Size: %s\n", item.Size))
-        }
-
-        sb.WriteString(fmt.Sprintf("   Qty: %d × ₹%.2f = ₹%.2f\n",
-            item.Quantity, item.ProductPrice, item.Subtotal))
-
-        // Image link
-        if item.ImageURL != "" {
-            sb.WriteString(fmt.Sprintf("   🖼 Photo: %s\n", item.ImageURL))
-        }
-        sb.WriteString("\n")
-    }
-
-    sb.WriteString("─────────────────────\n")
-    sb.WriteString(fmt.Sprintf("💰 *Total: ₹%.2f*\n\n", order.TotalAmount))
-    sb.WriteString(fmt.Sprintf("💳 *Payment:* %s\n",
-        strings.ToUpper(order.PaymentMethod)))
-
-    if order.Note != "" {
-        sb.WriteString(fmt.Sprintf("\n📝 *Note:* %s\n", order.Note))
-    }
-
-    sb.WriteString("\n━━━━━━━━━━━━━━━━━━━━")
-    return sb.String()
+	var builder strings.Builder
+	
+	builder.WriteString("🛍️ *New Order Received*\n\n")
+	builder.WriteString(fmt.Sprintf("📋 Order #: %s\n", order.OrderNumber))
+	builder.WriteString(fmt.Sprintf("👤 Customer: %s\n", order.CustomerName))
+	builder.WriteString(fmt.Sprintf("📞 Phone: %s\n", order.CustomerPhone))
+	
+	if order.CustomerEmail != "" {
+		builder.WriteString(fmt.Sprintf("📧 Email: %s\n", order.CustomerEmail))
+	}
+	
+	if order.CustomerAddress != "" {
+		builder.WriteString(fmt.Sprintf("📍 Address: %s\n", order.CustomerAddress))
+	}
+	
+	if order.GoogleMapsLink != "" {
+		builder.WriteString(fmt.Sprintf("🗺️ Location: %s\n", order.GoogleMapsLink))
+	}
+	
+	builder.WriteString("\n*Items:*\n")
+	for i, item := range order.Items {
+		builder.WriteString(fmt.Sprintf("%d. %s\n", i+1, item.ProductName))
+		if item.Color != "" {
+			builder.WriteString(fmt.Sprintf("   Color: %s\n", item.Color))
+		}
+		if item.Size != "" {
+			builder.WriteString(fmt.Sprintf("   Size: %s\n", item.Size))
+		}
+		builder.WriteString(fmt.Sprintf("   Qty: %d × ₹%.2f = ₹%.2f\n", 
+			item.Quantity, item.ProductPrice, item.Subtotal))
+	}
+	
+	builder.WriteString(fmt.Sprintf("\n💰 *Total Amount: ₹%.2f*\n", order.TotalAmount))
+	
+	if order.PaymentMethod != "" {
+		builder.WriteString(fmt.Sprintf("💳 Payment: %s\n", order.PaymentMethod))
+	}
+	
+	if order.Note != "" {
+		builder.WriteString(fmt.Sprintf("\n📝 Note: %s\n", order.Note))
+	}
+	
+	return builder.String()
 }
 
+// GenerateWhatsAppURL creates a WhatsApp link with the order message
 func (s *MessageService) GenerateWhatsAppURL(order *models.Order) string {
 	message := s.GenerateOrderMessage(order)
-	encoded := url.QueryEscape(message)
-	return fmt.Sprintf("https://wa.me/%s?text=%s", s.sellerPhone, encoded)
+	
+	// Add tracking link
+	trackingURL := fmt.Sprintf("%s/track/%s", s.appURL, order.OrderNumber)
+	message += fmt.Sprintf("\n🔍 Track Order: %s", trackingURL)
+	
+	encodedMessage := url.QueryEscape(message)
+	return fmt.Sprintf("https://wa.me/%s?text=%s", s.sellerPhone, encodedMessage)
 }
 
+// GenerateCustomerConfirmationMessage creates a simple confirmation for the customer
 func (s *MessageService) GenerateCustomerConfirmationMessage(order *models.Order) string {
 	return fmt.Sprintf(
-		"Hi %s! 👋\n\nYour order *%s* has been placed! 🎉\n\nClick the button below to confirm your order on WhatsApp.",
-		order.CustomerName,
+		"✅ Order confirmed! Your order #%s has been placed successfully. Total: ₹%.2f. We'll contact you shortly.",
 		order.OrderNumber,
+		order.TotalAmount,
 	)
 }
