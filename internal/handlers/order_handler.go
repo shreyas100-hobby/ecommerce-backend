@@ -20,7 +20,7 @@ func NewOrderHandler(orderService *services.OrderService) *OrderHandler {
 func (h *OrderHandler) CreateOrder(c *gin.Context) {
 	var req models.CreateOrderRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		log.Printf("❌ JSON binding error: %v", err)
+		log.Printf("❌ Invalid JSON: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error":   "Invalid request body",
 			"details": err.Error(),
@@ -28,25 +28,14 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	log.Printf("📦 ===== NEW ORDER REQUEST =====")
-	log.Printf("Customer: %s (%s)", req.CustomerName, req.CustomerPhone)
-	log.Printf("Items count: %d", len(req.Items))
-	for i, item := range req.Items {
-		log.Printf("  Item %d: ProductID=%s, VariantID=%v, Qty=%d, Color=%s, Size=%s", 
-			i+1, item.ProductID, item.VariantID, item.Quantity, item.Color, item.Size)
-	}
-
 	result, err := h.orderService.CreateOrder(c.Request.Context(), &req)
 	if err != nil {
-		log.Printf("❌ Order creation failed: %v", err)
+		log.Printf("❌ Order failed: %v", err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return
 	}
-
-	log.Printf("✅ Order created successfully: %s", result.Order.OrderNumber)
-	log.Printf("================================\n")
 
 	c.JSON(http.StatusCreated, gin.H{
 		"success":       true,
@@ -56,6 +45,7 @@ func (h *OrderHandler) CreateOrder(c *gin.Context) {
 		"order_message": result.OrderMessage,
 	})
 }
+
 func (h *OrderHandler) GetOrder(c *gin.Context) {
 	id := c.Param("id")
 	order, err := h.orderService.GetOrder(c.Request.Context(), id)

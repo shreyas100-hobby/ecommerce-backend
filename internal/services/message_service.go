@@ -20,7 +20,6 @@ func NewMessageService(sellerPhone, appURL string) *MessageService {
 	}
 }
 
-// GenerateOrderMessage creates the full order details message
 func (s *MessageService) GenerateOrderMessage(order *models.Order) string {
 	var builder strings.Builder
 	
@@ -67,11 +66,8 @@ func (s *MessageService) GenerateOrderMessage(order *models.Order) string {
 	return builder.String()
 }
 
-// GenerateWhatsAppURL creates a WhatsApp link with the order message
 func (s *MessageService) GenerateWhatsAppURL(order *models.Order) string {
 	message := s.GenerateOrderMessage(order)
-	
-	// Add tracking link
 	trackingURL := fmt.Sprintf("%s/track/%s", s.appURL, order.OrderNumber)
 	message += fmt.Sprintf("\n🔍 Track Order: %s", trackingURL)
 	
@@ -79,11 +75,10 @@ func (s *MessageService) GenerateWhatsAppURL(order *models.Order) string {
 	return fmt.Sprintf("https://wa.me/%s?text=%s", s.sellerPhone, encodedMessage)
 }
 
-// GenerateCustomerConfirmationMessage creates a simple confirmation for the customer
 func (s *MessageService) GenerateCustomerConfirmationMessage(order *models.Order) string {
 	return fmt.Sprintf(
 		"✅ Order confirmed! Your order #%s has been placed successfully. Total: ₹%.2f. We'll contact you shortly.",
 		order.OrderNumber,
 		order.TotalAmount,
 	)
-}
+}	
