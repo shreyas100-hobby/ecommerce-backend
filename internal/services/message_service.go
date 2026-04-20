@@ -81,4 +81,4 @@ func (s *MessageService) GenerateCustomerConfirmationMessage(order *models.Order
 		order.OrderNumber,
 		order.TotalAmount,
 	)
-}	
+}

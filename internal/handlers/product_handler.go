@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -31,8 +32,9 @@ func (h *ProductHandler) GetProducts(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  products,
-		"count": len(products),
+		"data":      products,
+		"count":     len(products),
+		"timestamp": time.Now().Unix(),
 	})
 }
 
@@ -45,7 +47,10 @@ func (h *ProductHandler) GetProduct(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": product})
+	c.JSON(http.StatusOK, gin.H{
+		"data":      product,
+		"timestamp": time.Now().Unix(),
+	})
 }
 
 func (h *ProductHandler) CreateProduct(c *gin.Context) {
@@ -102,7 +107,11 @@ func (h *ProductHandler) GetAllProductsAdmin(c *gin.Context) {
 	if products == nil {
 		products = []models.Product{}
 	}
-	c.JSON(http.StatusOK, gin.H{"data": products, "count": len(products)})
+	c.JSON(http.StatusOK, gin.H{
+		"data":      products,
+		"count":     len(products),
+		"timestamp": time.Now().Unix(),
+	})
 }
 
 func (h *ProductHandler) GetCategories(c *gin.Context) {
@@ -117,8 +126,9 @@ func (h *ProductHandler) GetCategories(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"data":  categories,
-		"count": len(categories),
+		"data":      categories,
+		"count":     len(categories),
+		"timestamp": time.Now().Unix(),
 	})
 }
 

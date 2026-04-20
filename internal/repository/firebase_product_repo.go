@@ -229,8 +229,6 @@ func (r *FirebaseProductRepository) GetProductVariants(ctx context.Context, prod
 }
 
 func (r *FirebaseProductRepository) GetVariantByID(ctx context.Context, id string) (*models.ProductVariant, error) {
-	// Need to search all products to find a variant... not ideal, but this is why NoSQL models differ.
-	// For a quick migration, we'll implement a basic search.
 	iter := r.client.Collection(productsCollection).Documents(ctx)
 	defer iter.Stop()
 

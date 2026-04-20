@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"net/http"
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/shreyas100-hobby/ecommerce-backend/internal/models"
@@ -93,6 +93,5 @@ func (h *OrderHandler) TrackOrder(c *gin.Context) {
 		})
 		return
 	}
-	// Return the full order struct — all fields are tagged correctly
 	c.JSON(http.StatusOK, gin.H{"data": order})
 }

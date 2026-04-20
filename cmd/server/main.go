@@ -4,6 +4,10 @@ package main
 import (
     "context"
     "log"
+    "net/http"
+    "os"
+    "strings"
+    "time"
 
     "github.com/gin-gonic/gin"
     "github.com/shreyas100-hobby/ecommerce-backend/internal/config"
@@ -13,6 +17,28 @@ import (
     "github.com/shreyas100-hobby/ecommerce-backend/internal/repository"
     "github.com/shreyas100-hobby/ecommerce-backend/internal/services"
 )
+
+// startKeepAlive pings the server's /health endpoint every `interval`
+// to prevent Render free tier from sleeping due to inactivity.
+func startKeepAlive(selfURL string, interval time.Duration) {
+    // Normalise — remove trailing slash
+    selfURL = strings.TrimRight(selfURL, "/") + "/health"
+    go func() {
+        // Wait one full interval before the first ping so the server
+        // has time to fully start up first.
+        time.Sleep(interval)
+        for {
+            resp, err := http.Get(selfURL)
+            if err != nil {
+                log.Printf("⚠️  Keep-alive ping failed: %v", err)
+            } else {
+                resp.Body.Close()
+                log.Printf("🏓 Keep-alive ping OK → %s", selfURL)
+            }
+            time.Sleep(interval)
+        }
+    }()
+}
 
 func main() {
     cfg := config.Load()
@@ -50,10 +76,19 @@ func main() {
     uploadHandler := handlers.NewUploadHandler(cloudinarySvc)
 
     r := gin.Default()
+
+    // Disable caching for all API responses
+    r.Use(func(c *gin.Context) {
+        c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+        c.Header("Pragma", "no-cache")
+        c.Header("Expires", "0")
+        c.Next()
+    })
+
     r.Use(middleware.CORS(cfg.AllowedOrigins))
 
     r.GET("/health", func(c *gin.Context) {
-        c.JSON(200, gin.H{"status": "ok"})
+        c.JSON(200, gin.H{"status": "ok", "timestamp": time.Now().Unix()})
     })
 
     // Public routes
@@ -89,6 +124,15 @@ func main() {
         admin.POST("/categories", productHandler.CreateCategory)
         admin.DELETE("/categories/:id", productHandler.DeleteCategory)
     }
+
+    // ── Keep-Alive (prevents Render free tier cold starts) ──────────
+    selfURL := os.Getenv("SELF_URL")
+    if selfURL == "" {
+        selfURL = "http://localhost:" + cfg.Port
+    }
+    startKeepAlive(selfURL, 14*time.Minute)
+    log.Printf("🏓 Keep-alive started → pinging %s/health every 14 min", selfURL)
+    // ────────────────────────────────────────────────────────────────
 
     log.Printf("🚀 Server running on port %s", cfg.Port)
     r.Run(":" + cfg.Port)
