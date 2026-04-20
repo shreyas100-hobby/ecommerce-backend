@@ -115,6 +115,19 @@ func (s *OrderService) CreateOrder(ctx context.Context, req *models.CreateOrderR
 
 	order.TotalAmount = totalAmount
 
+	// 3. Decrement Stock
+	for _, item := range order.Items {
+		var vID *string
+		if item.VariantID != nil && *item.VariantID != "" {
+			vID = item.VariantID
+		}
+		
+		err := s.productRepo.DecrementStock(ctx, item.ProductID, vID, item.Quantity)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update stock for '%s': %w", item.ProductName, err)
+		}
+	}
+
 	if err := s.orderRepo.Create(ctx, order); err != nil {
 		return nil, fmt.Errorf("failed to save order: %w", err)
 	}

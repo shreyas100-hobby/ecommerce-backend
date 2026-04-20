@@ -283,3 +283,67 @@ func (r *FirebaseProductRepository) DeleteCategory(ctx context.Context, id strin
 	_, err := r.client.Collection(categoriesCollection).Doc(id).Delete(ctx)
 	return err
 }
+
+func (r *FirebaseProductRepository) DecrementStock(ctx context.Context, productID string, variantID *string, quantity int) error {
+	docRef := r.client.Collection(productsCollection).Doc(productID)
+
+	return r.client.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+		doc, err := tx.Get(docRef)
+		if err != nil {
+			return fmt.Errorf("failed to get product for stock update: %w", err)
+		}
+
+		var p models.Product
+		if err := doc.DataTo(&p); err != nil {
+			return fmt.Errorf("failed to decode product for stock update: %w", err)
+		}
+
+		if variantID != nil && *variantID != "" {
+			// Find and update variant stock
+			found := false
+			for i := range p.Variants {
+				if p.Variants[i].ID == *variantID {
+					if p.Variants[i].StockQuantity < quantity {
+						return fmt.Errorf("insufficient stock for variant")
+					}
+					p.Variants[i].StockQuantity -= quantity
+					found = true
+					break
+				}
+			}
+			if !found {
+				return fmt.Errorf("variant not found")
+			}
+
+			// Check if ALL variants are now out of stock
+			allOutOfStock := true
+			for _, v := range p.Variants {
+				if v.StockQuantity > 0 {
+					allOutOfStock = false
+					break
+				}
+			}
+			if allOutOfStock {
+				p.IsAvailable = false
+			}
+		} else {
+			// Update main product stock
+			if p.StockQuantity < quantity {
+				return fmt.Errorf("insufficient stock for product")
+			}
+			p.StockQuantity -= quantity
+			
+			// If stock is now 0, mark as unavailable for better UX
+			if p.StockQuantity == 0 {
+				p.IsAvailable = false
+			}
+		}
+
+		// Also update IsAvailable if stock reaches 0?
+		// Actually, let's keep IsAvailable as a manual toggle or logic based, 
+		// but typically if all stock is 0, it should probably be shown as out of stock.
+		// For now, just decrement.
+
+		return tx.Set(docRef, p)
+	})
+}

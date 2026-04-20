@@ -18,4 +18,5 @@ type ProductRepository interface {
 	GetAllCategories(ctx context.Context) ([]models.Category, error)
 	CreateCategory(ctx context.Context, name, description string, cat *models.Category) error
 	DeleteCategory(ctx context.Context, id string) error
+	DecrementStock(ctx context.Context, productID string, variantID *string, quantity int) error
 }

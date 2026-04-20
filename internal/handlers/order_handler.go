@@ -88,17 +88,6 @@ func (h *OrderHandler) TrackOrder(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"data": gin.H{
-			"order_number":   order.OrderNumber,
-			"customer_name":  order.CustomerName,
-			"customer_phone": order.CustomerPhone,
-			"customer_email": order.CustomerEmail,
-			"status":         order.Status,
-			"total_amount":   order.TotalAmount,
-			"payment_method": order.PaymentMethod,
-			"items":          order.Items,
-			"created_at":     order.CreatedAt,
-		},
-	})
-}
+	// Return the full order struct — all fields are tagged correctly
+	c.JSON(http.StatusOK, gin.H{"data": order})
+}
